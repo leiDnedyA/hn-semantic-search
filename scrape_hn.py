@@ -11,9 +11,18 @@ PAGE_COUNT = int(sys.argv[1]) if len(sys.argv) >= 2 else 1
 print("\n\n\n\n\n\n------------------------------------")
 print(f"scraping {PAGE_COUNT} pages of posts...")
 
-posts = []
+unfiltered_posts = []
 for i in range(PAGE_COUNT):
-    posts = posts + get_hn_posts(i + 1)
+    unfiltered_posts = unfiltered_posts + get_hn_posts(i)
+
+# remove duplicates
+seen_urls = set()
+posts = []
+for post in unfiltered_posts:
+    if post.href in seen_urls:
+        continue
+    seen_urls.add(post.href)
+    posts.append(post)
 
 # Generate embeddings
 print("creating embeddings")

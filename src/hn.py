@@ -1,4 +1,5 @@
 from typing import Any, List, Dict
+from datetime import date, timedelta
 from urllib.parse import urlparse
 from bs4 import BeautifulSoup
 import requests
@@ -55,12 +56,22 @@ def _is_hn_site_link(link):
     return False
 
 
-def get_hn_post_urls(page=0):
-    r = None
-    if page:
-        r = requests.get(f"https://news.ycombinator.com/?p={page}")
-    else:
-        r = requests.get("https://news.ycombinator.com/")
+def get_date_n_days_ago(n: int) -> str:
+    """
+    Return the date string (YYYY-MM-DD) for n days ago
+    (where n=0 returns today).
+    """
+    target_date = date.today() - timedelta(days=n)
+    return target_date.strftime("%Y-%m-%d")
+
+def get_hn_post_urls(days_ago=0):
+    url = "https://news.ycombinator.com/"
+
+    if days_ago:
+        url = f"https://news.ycombinator.com/front?day={get_date_n_days_ago(days_ago)}"
+
+    print(f'[SCRAPING YC PAGE] {url}')
+    r = requests.get(url)
 
     links = _get_hn_post_links(r.text)
     links = list(map(lambda post: Post(post.title, get_full_url(post.href)), links))
@@ -71,30 +82,13 @@ def get_hn_post_with_content(post: Post) -> Post:
     return Post(post.title, post.href, get_plaintext_from_url(post.href))
 
 def get_hn_posts(page=0) -> List[Post]:
-    """Scrape Hacker News posts for *page* and cache them.
-
-    1. Previously cached posts are loaded from the JSON cache file.
-    2. Newly scraped links that are already cached (based on ``href``) are
-       skipped.
-    3. The remaining new posts are fetched for their full content.
-    4. Both newly scraped posts and existing cached posts are persisted back to
-       disk.
-
-    Only **new** posts (i.e. ones not already cached) are returned so that
-    downstream code only processes fresh data.
-    """
-
-    # Load existing cache data and build a quick-lookup set of hrefs
     cached_posts: List[Dict[str, str]] = load_posts()
     cached_hrefs = {p.get("href") for p in cached_posts}
 
-    # Step 1: scrape links visible on the requested page
     scraped_posts = get_hn_post_urls(page)
 
-    # Step 2: filter out posts we have already cached
     new_posts = [p for p in scraped_posts if p.href not in cached_hrefs]
 
-    # Step 3: fetch content for the new posts only
     new_posts_with_content = list(map(get_hn_post_with_content, new_posts))
 
     all_posts = []
@@ -111,5 +105,4 @@ def get_hn_posts(page=0) -> List[Post]:
     if new_posts_with_content:
         save_posts(list(map(post_to_dict, all_posts)))
 
-    # Return only the newly scraped posts to the caller
     return all_posts
