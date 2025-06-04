@@ -9,8 +9,12 @@ import os
 from pathlib import Path
 from typing import Dict, List
 
-# Cache file lives in the project root (one directory above `src`).
+# Cache file for scraped posts lives in the project root (one directory above `src`).
 _CACHE_FILE = Path(__file__).resolve().parent.parent / "posts_cache.json"
+
+# New JSON file that stores sentence-embedding vectors keyed by post ``href``.
+# Stored beside the posts cache so that everything persists at project root.
+_EMBEDDINGS_FILE = Path(__file__).resolve().parent.parent / "embeddings_cache.json"
 
 
 def _ensure_cache_file_exists() -> None:
@@ -56,3 +60,41 @@ def post_exists(href: str) -> bool:
     """Return ``True`` if a post with *href* already exists in the cache."""
     cached_hrefs = {p.get("href") for p in load_posts()}
     return href in cached_hrefs
+
+
+# ---------------------------------------------------------------------------
+# Embeddings cache helpers
+# ---------------------------------------------------------------------------
+
+
+def _ensure_embeddings_file_exists() -> None:
+    """Create an empty embeddings cache file if it does not yet exist."""
+    if not _EMBEDDINGS_FILE.exists():
+        _EMBEDDINGS_FILE.touch()
+        # The embeddings cache is a mapping ``href -> List[float]``
+        _EMBEDDINGS_FILE.write_text("{}", encoding="utf-8")
+
+
+def load_embeddings() -> Dict[str, List[float]]:
+    """Load the embedding cache into memory.
+
+    Returns an empty dict when the cache file is missing or unreadable.
+    """
+    if not _EMBEDDINGS_FILE.exists():
+        return {}
+
+    try:
+        with _EMBEDDINGS_FILE.open("r", encoding="utf-8") as fh:
+            return json.load(fh)  # type: ignore[return-value]
+    except (json.JSONDecodeError, OSError):
+        # Treat corrupted cache as empty – don't crash the caller.
+        return {}
+
+
+def save_embeddings(embeddings: Dict[str, List[float]]) -> None:
+    """Persist *embeddings* (mapping ``href -> vector``) to disk."""
+    _ensure_embeddings_file_exists()
+
+    # We intentionally omit indentation to keep the file size reasonable.
+    with _EMBEDDINGS_FILE.open("w", encoding="utf-8") as fh:
+        json.dump(embeddings, fh, ensure_ascii=False)
