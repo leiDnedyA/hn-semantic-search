@@ -1,10 +1,19 @@
 from urllib.parse import urlparse
-
 from bs4 import BeautifulSoup
-from .url import is_complete_url, get_full_url
 import requests
 
+from src.scrape import get_plaintext_from_url
+from .url import is_complete_url, get_full_url
+
 ignore_urls = {'https://github.com/HackerNews/API'}
+
+class Post:
+    def __str__(self) -> str:
+        return f'title: {self.title}\n\n' + f'href: {self.href}\n\n' + f'content: \n\n"""{self.content}"""'
+    def __init__(self, title, href, content=None):
+        self.title = title
+        self.href = href
+        self.content = content
 
 def _get_hn_post_links(html):
     posts = []
@@ -18,7 +27,7 @@ def _get_hn_post_links(html):
         if href and href in ignore_urls:
             continue
         if href and not _is_hn_site_link(href):
-            posts.append((tag.get_text(), href))
+            posts.append(Post(tag.get_text(), href))
     return posts
 
 def _is_hn_site_link(link):
@@ -41,5 +50,9 @@ def get_hn_post_urls(page=0):
         r = requests.get("https://news.ycombinator.com/")
 
     links = _get_hn_post_links(r.text)
-    links = list(map(lambda post: (post[0], get_full_url(post[1])), links))
+    links = list(map(lambda post: Post(post.title, get_full_url(post.href)), links))
+    links = list(map(get_hn_post_with_content, links))
     return links
+
+def get_hn_post_with_content(post: Post) -> Post:
+    return Post(post.title, post.href, get_plaintext_from_url(post.href))
