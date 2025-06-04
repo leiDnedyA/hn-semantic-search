@@ -7,7 +7,11 @@ model = SentenceTransformer("intfloat/e5-small")
 
 print("\n\n\n\n\n\n------------------------------------")
 print("scraping posts")
-posts = get_hn_posts()
+
+PAGE_COUNT = 10
+posts = []
+for i in range(PAGE_COUNT):
+    posts = posts + get_hn_posts(i + 1)
 
 # Generate embeddings
 print("creating embeddings")
