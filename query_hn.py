@@ -9,7 +9,8 @@ model = SentenceTransformer("intfloat/e5-small")
 print("\n\n\n\n\n\n------------------------------------")
 print("scraping posts")
 
-PAGE_COUNT = int(sys.argv[2]) if len(sys.argv) >= 3 else 1
+PAGE_COUNT = int(sys.argv[1]) if len(sys.argv) >= 2 else 1
+print(PAGE_COUNT)
 posts = []
 for i in range(PAGE_COUNT):
     posts = posts + get_hn_posts(i + 1)
