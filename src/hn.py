@@ -1,6 +1,7 @@
 from typing import Any, List
 from urllib.parse import urlparse
 from bs4 import BeautifulSoup
+import requests
 
 from src.scrape import get_plaintext_from_url
 from .url import is_complete_url, get_full_url
@@ -8,7 +9,7 @@ from .url import is_complete_url, get_full_url
 ignore_urls = {'https://github.com/HackerNews/API'}
 
 class Post:
-    embedding: Any
+    embedding: Any = None
     title: str
     href: str
     content: str | None
