@@ -1,6 +1,6 @@
+from typing import Any, List
 from urllib.parse import urlparse
 from bs4 import BeautifulSoup
-import requests
 
 from src.scrape import get_plaintext_from_url
 from .url import is_complete_url, get_full_url
@@ -8,6 +8,10 @@ from .url import is_complete_url, get_full_url
 ignore_urls = {'https://github.com/HackerNews/API'}
 
 class Post:
+    embedding: Any
+    title: str
+    href: str
+    content: str | None
     def __str__(self) -> str:
         return f'title: {self.title}\n\n' + f'href: {self.href}\n\n' + f'content: \n\n"""{self.content}"""'
     def __init__(self, title, href, content=None):
@@ -56,3 +60,6 @@ def get_hn_post_urls(page=0):
 
 def get_hn_post_with_content(post: Post) -> Post:
     return Post(post.title, post.href, get_plaintext_from_url(post.href))
+
+def get_hn_posts(page=0) -> List[Post]:
+    return list(map(get_hn_post_with_content, get_hn_post_urls(page)))
