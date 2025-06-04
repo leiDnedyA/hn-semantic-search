@@ -4,6 +4,8 @@ from bs4 import BeautifulSoup
 from .url import is_complete_url, get_full_url
 import requests
 
+ignore_urls = {'https://github.com/HackerNews/API'}
+
 def _get_hn_post_links(html):
     posts = []
     soup = BeautifulSoup(html, 'html.parser')
@@ -12,6 +14,8 @@ def _get_hn_post_links(html):
         href = tag['href']
         parent_class = tag.parent.get('class') 
         if parent_class and ('age' in parent_class or 'subline' in parent_class):
+            continue
+        if href and href in ignore_urls:
             continue
         if href and not _is_hn_site_link(href):
             posts.append((tag.get_text(), href))
