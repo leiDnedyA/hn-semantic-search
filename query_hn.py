@@ -21,6 +21,18 @@ for post in posts:
         content_embedding = model.encode(post.content)
         post.embedding = content_embedding
 
+def get_min_similarity_index(results):
+    min_similarity = 1
+    min_index = -1
+    for i in range(len(results)):
+        (similarity, _) = results[i]
+        if similarity < min_similarity:
+            min_index = i
+            min_similarity = similarity
+    return min_index
+
+
+
 while True:
     print("\n\n\n\n\n\n------------------------------------")
     query = input("Query the data:")
@@ -29,18 +41,28 @@ while True:
 
     print("\n\n\n\n\n\n------------------------------------")
     print('Comparing vector values')
-    max_similarity = -1
+
+    threshold_result_similarity = -1
     closest_post = None
-    for i in range(len(posts)):
-        post = posts[i]
+    results_and_similarities = []
+    result_count = 10
+
+    for post in posts:
         if post.embedding is not None:
             similarity_tensor = model.similarity(query_embedding, post.embedding)
             similarity = similarity_tensor.item()
-            if similarity > max_similarity:
-                max_similarity = similarity
-                closest_post = post
+            if similarity > threshold_result_similarity:
+                if len(results_and_similarities) > result_count:
+                    results_and_similarities.pop(get_min_similarity_index(results_and_similarities))
+                results_and_similarities.append((similarity, post))
+                if len(results_and_similarities) > result_count:
+                    threshold_result_similarity = results_and_similarities[get_min_similarity_index(results_and_similarities)][0]
+    
+    results_and_similarities.sort(key=lambda rs: rs[0], reverse=True)
 
     print("\n\n\n\n\n\n------------------------------------")
-    print("Result!:")
-    if closest_post:
-        print(closest_post.title, closest_post.href)
+    print("Results:")
+    if results_and_similarities:
+        for (_, post) in results_and_similarities:
+            print(post.title)
+            print('\t' + post.href)
