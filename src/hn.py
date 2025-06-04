@@ -1,10 +1,11 @@
-from typing import Any, List
+from typing import Any, List, Dict
 from urllib.parse import urlparse
 from bs4 import BeautifulSoup
 import requests
 
 from src.scrape import get_plaintext_from_url
 from .url import is_complete_url, get_full_url
+from .cache import load_posts, save_posts
 
 ignore_urls = {'https://github.com/HackerNews/API'}
 
@@ -63,4 +64,43 @@ def get_hn_post_with_content(post: Post) -> Post:
     return Post(post.title, post.href, get_plaintext_from_url(post.href))
 
 def get_hn_posts(page=0) -> List[Post]:
-    return list(map(get_hn_post_with_content, get_hn_post_urls(page)))
+    """Scrape Hacker News posts for *page* and cache them.
+
+    1. Previously cached posts are loaded from the JSON cache file.
+    2. Newly scraped links that are already cached (based on ``href``) are
+       skipped.
+    3. The remaining new posts are fetched for their full content.
+    4. Both newly scraped posts and existing cached posts are persisted back to
+       disk.
+
+    Only **new** posts (i.e. ones not already cached) are returned so that
+    downstream code only processes fresh data.
+    """
+
+    # Load existing cache data and build a quick-lookup set of hrefs
+    cached_posts: List[Dict[str, str]] = load_posts()
+    cached_hrefs = {p.get("href") for p in cached_posts}
+
+    # Step 1: scrape links visible on the requested page
+    scraped_posts = get_hn_post_urls(page)
+
+    # Step 2: filter out posts we have already cached
+    new_posts = [p for p in scraped_posts if p.href not in cached_hrefs]
+
+    # Step 3: fetch content for the new posts only
+    new_posts_with_content = list(map(get_hn_post_with_content, new_posts))
+
+    # Step 4: persist the combined cache (existing + new)
+    if new_posts_with_content:
+        cached_posts.extend(
+            {
+                "title": p.title,
+                "href": p.href,
+                "content": p.content,
+            }
+            for p in new_posts_with_content
+        )
+        save_posts(cached_posts)
+
+    # Return only the newly scraped posts to the caller
+    return new_posts_with_content
