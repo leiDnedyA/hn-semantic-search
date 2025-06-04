@@ -9,6 +9,13 @@ from .cache import load_posts, save_posts
 
 ignore_urls = {'https://github.com/HackerNews/API'}
 
+def post_to_dict(post):
+    return {
+        'href': post.href,
+        'title': post.title,
+        'content': post.content
+    }
+
 class Post:
     embedding: Any = None
     title: str
@@ -90,17 +97,19 @@ def get_hn_posts(page=0) -> List[Post]:
     # Step 3: fetch content for the new posts only
     new_posts_with_content = list(map(get_hn_post_with_content, new_posts))
 
-    # Step 4: persist the combined cache (existing + new)
+    all_posts = []
+    seen_hrefs = set()
+    for post in new_posts_with_content:
+        if post.href not in seen_hrefs:
+            all_posts.append(post)
+            seen_hrefs.add(post.href)
+    for post in cached_posts:
+        if post['href'] not in seen_hrefs:
+            all_posts.append(Post(post['title'], post['href'], post['content']))
+            seen_hrefs.add(post['href'])
+
     if new_posts_with_content:
-        cached_posts.extend(
-            {
-                "title": p.title,
-                "href": p.href,
-                "content": p.content,
-            }
-            for p in new_posts_with_content
-        )
-        save_posts(cached_posts)
+        save_posts(list(map(post_to_dict, all_posts)))
 
     # Return only the newly scraped posts to the caller
-    return new_posts_with_content
+    return all_posts
